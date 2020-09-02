@@ -1,3 +1,8 @@
+<?php
+require_once('base.php');
+require_once(getBasePath("lib/functions.php"));
+useDeLocale();
+?>
 <!DOCTYPE html>
 <html lang="de">
 <head>
@@ -145,7 +150,7 @@ header .container {
     </div>
 
     <div class="col-12 col-lg-6 text-lg-right">
-        Programmiert mit <i class="fas fa-heart text-highlight"></i> von 
+        <?php echo _('Maintained by'); ?>
         <a href="MAILTO:mail@tom-rose.de?subject=Sharepicgenerator">Tom Rose</a>.
     </div>
 </footer>

@@ -61,8 +61,9 @@ deploy-production:
 rollback:
 	php vendor/bin/dep rollback production
 
-create-po:
-	cd  code/dist/lang/de/LC_MESSAGES && xgettext --add-comments ../../*.php -d sharepicgenerator
+update-po:
+	find code/dist -name "*.php" -print0 | xargs -0 xgettext --sort-output --add-comments -o code/dist/lang/de/LC_MESSAGES/toBeAdded.po && cd code/dist/lang/de/LC_MESSAGES && msgmerge --update sharepicgenerator.po toBeAdded.po && rm toBeAdded.po
 
 create-mo:
 	cd  code/dist/lang/de/LC_MESSAGES && msgfmt sharepicgenerator.po --output-file=sharepicgenerator.mo
+

@@ -4,6 +4,11 @@ function useDeLocale()
 {
     setlocale(LC_ALL, ' de_DE.UTF-8', 'de_DE.utf8');
     putenv("LANG=de");
+
+    $domain = "sharepicgenerator";
+    bindtextdomain($domain, getBasePath('lang/'));
+    bind_textdomain_codeset($domain, 'UTF-8');
+    textdomain($domain);
 }
 
 function createAccessToken($user)
