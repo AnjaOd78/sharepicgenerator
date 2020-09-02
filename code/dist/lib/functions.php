@@ -3,6 +3,7 @@
 function useDeLocale()
 {
     setlocale(LC_ALL, ' de_DE.UTF-8', 'de_DE.utf8');
+    putenv("LANG=de");
 }
 
 function createAccessToken($user)

@@ -9,6 +9,7 @@ RUN sed -ri -e 's!/var/www/!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/apache2.conf
 RUN apt-get install -y libpcre3-dev libssl-dev librabbitmq-dev
 RUN pecl install oauth 
 RUN docker-php-ext-enable oauth
+RUN docker-php-ext-install gettext
 
 # Needed for api for telegram
 #RUN apt-get install python-pip -y
