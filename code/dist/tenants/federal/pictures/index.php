@@ -2,6 +2,7 @@
 require_once('base.php');
 require_once(getBasePath('lib/functions.php'));
 require_once(getBasePath('lib/gallery_functions.php'));
+useDeLocale();
 
 session_start();
 readConfig();
@@ -39,35 +40,31 @@ if (!isAllowed(false)) {
     <meta name="msapplication-TileImage" content="/assets/favicons/ms-icon-144x144.png">
 </head>
 <body>
-
 <div class="container-fluid">
     <div class="row">
         <div class="col-12 text-center pt-4 pb-3">
-            <h1 class="text-uppercase h2"><i class="fas fa-store"></i> Muster-Sharepics </h1>
-            <small>von anderen zur Inspiration
-                <a href="../"><i class="fas fa-wrench"></i> selbst erstellen</a>
-        </small>
+            <h1 class="text-uppercase h2">Mediengalerie</h1>
         </div>
     </div>
-    <div class="row pb-5 mb-3">
-        <div class="col-12 font-weight-bold">Meine Muster-Sharepics</div>
+    <div id="picture-list">
+      <div class="pb-3">
+        <input class="search" placeholder="Suche" />
+        <button class="sort" data-sort="llname">Nach Name sortieren</button>
+        <button class="sort" data-sort="llalbum">Nach Album sortieren</button>
+      </div>
+      <div class="row pb-5 mb-3 list">
         <?php
-            showImages('img/shpic*', 'ownFiles');
+          showPictures('img/');
         ?>
-    </div>
-    <div class="row pb-5 mb-3">
-        <div class="col-12 font-weight-bold">Von anderen</div>
-        <?php
-            showImages('img/shpic*', 'foreignFiles');
-        ?>
+      </div>
     </div>
 </div>
-
-
 
 <footer class="row bg-primary p-2 text-white">
     <div class="col-12 col-lg-6">
         <a href="/documentation" target="_blank"><i class="fas fa-question-circle"></i> Anleitung</a>
+        <a href="#" class="overlay-opener" data-target="actiondays"><i class="far fa-hand-point-right ml-3"></i> Aktionstage</a>
+        <a href="/markdown" target="_blank"><i class="fas fa-table ml-3"></i> Tabelle erstellen</a>
     </div>
 
     <div class="col-12 col-lg-6 text-lg-right">
@@ -83,28 +80,16 @@ if (!isAllowed(false)) {
 <script src="/vendor/jquery-3.4.1.min.js"></script>
 <script src="/vendor/bootstrap.min.js"></script>
 <script src="/vendor/bootstrap4-toggle.min.js"></script>
+<script src="/vendor/list.min.js"></script>
 
 <script>
-    $('.deleteWorkfile').on('click', function deleteWorkfile() {
-    if (!confirm('Wirklich dauerhaft löschen?')) {
-      return;
-    }
+var options = {
+  valueNames: [ 'llalbum', 'llname', 'llphotographer', 'lltags' ]
+};
 
-     $.post('/actions/delete.php', { action: 'workfile', 'workfileiId': $(this).data('id'), csrf: '<?php echo $_SESSION['csrf'];?>' })
-      .done((response) => {
-        const data = JSON.parse(response);
-        console.log(data.success)
-        if (data.error) {
-          console.log(data);
-          alert("Die Datei konnte nicht gelöscht werden.");
-          return;
-        }
-        
-        $(this).closest('.samplesharepic').parent().fadeOut(1000);
+let hackerList = new List('picture-list', options);
 
-      });
-    });
-    </script>
+</script>
 
 </body>
 </html>

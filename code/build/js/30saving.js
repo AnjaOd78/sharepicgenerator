@@ -17,6 +17,12 @@ function loadFormData(formdata) {
     }
   });
 
+  for (let i = 1; i <= 2; i++) {
+    if ($(`#addpicfile${i}`).val()) {
+      show(`show-add-pic-${i}`);
+    }
+  }
+
   window.setTimeout(() => {
     if (typeof reDraw === 'function') {
       // eslint-disable-next-line no-undef
@@ -27,12 +33,16 @@ function loadFormData(formdata) {
       // eslint-disable-next-line no-undef
       showLayout();
     }
+
+    $('#logosize').val(formdata.logosize);
+    logo.resize($('#logosize').val());
   }, 100);
 }
 
 // eslint-disable-next-line no-unused-vars
 function savework() {
   const data = $('#pic').serialize();
+  delete data.fullBackgroundName;
 
   $.ajax({
     type: 'POST',

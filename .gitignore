@@ -33,7 +33,7 @@ code/dist/api/*.jpg
 code/tests/livetest/*.png
 code/tests/livetest/*.jpg
 
-code/dist/passwords.php
+code/dist/ini/passwords.php
 code/dist/log/.htusers
 
 
@@ -47,3 +47,4 @@ code/dist/log/.htusers
 
 docker-compose.yml
 vendor/
+passwords.php

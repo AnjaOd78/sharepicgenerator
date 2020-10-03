@@ -26,7 +26,7 @@ function handleBackgroundUpload($extension)
 
     $line = sprintf("%s\t%s\t%s\t%s\t%s\n", time(), $filename, $moved, $filesJoin, $fe1);
 
-    file_put_contents(getBasePath('log/uploads.log'), $line, FILE_APPEND);
+    file_put_contents(getBasePath('log/logs/uploads.log'), $line, FILE_APPEND);
 
     $filename_small = $filebasename . '_small.' . $extension;
     prepareFileAndSendInfo($filename, $filename_small);
@@ -54,6 +54,9 @@ function handleUploadWork()
     move_uploaded_file($_FILES['file']['tmp_name'], $filename);
 
     $cmd = sprintf('unzip %s -d %s 2>&1', $filename, $savedir);
+    exec($cmd, $output);
+
+    $cmd = sprintf("chmod -R 777 %s", $savedir);
     exec($cmd, $output);
 
     $return['okay'] = true;
@@ -114,7 +117,7 @@ function isFileAllowed($extension, $allowed)
     return in_array(strtolower($extension), $allowed);
 }
 
-function handleVideoVpload($extension)
+function handleVideoUpload($extension)
 {
     $basename = getBasePath('tmp/' . uniqid('video'));
     $videofile = $basename . '.' . $extension;

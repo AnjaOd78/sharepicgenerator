@@ -110,7 +110,7 @@ function logFailure($msg)
     $landesverband = $_SESSION['landesverband'];
     $tenant = $_SESSION['tenant'];
     $line = sprintf("%s\t%s\t%s\t%s\t%s\n", time(), $user, $accesstoken, $msg, $landesverband, $tenant);
-    file_put_contents(getBasePath('log/error.log'), $line, FILE_APPEND);
+    file_put_contents(getBasePath('log/logs/error.log'), $line, FILE_APPEND);
 }
 
 function logLogin()
@@ -119,7 +119,7 @@ function logLogin()
     $landesverband = $_SESSION['landesverband'];
     $tenant = $_SESSION['tenant'];
     $line = sprintf("%s\t%s\t%s\t%s\t%s\n", time(), $user, "login", $landesverband, $tenant);
-    file_put_contents(getBasePath('log/log.log'), $line, FILE_APPEND);
+    file_put_contents(getBasePath('log/logs/log.log'), $line, FILE_APPEND);
 }
 
 function logDownload()
@@ -128,7 +128,7 @@ function logDownload()
     $pixabay = sanitizeUserinput($_POST['usepixabay']);
     $socialmediaplatform = sanitizeUserinput($_POST['socialmediaplatform']);
     $line = sprintf("%s\t%s\t%s\t%s\t%s\n", time(), $user, 'download', $pixabay, $socialmediaplatform);
-    file_put_contents(getBasePath('log/log.log'), $line, FILE_APPEND);
+    file_put_contents(getBasePath('log/logs/log.log'), $line, FILE_APPEND);
 }
 
 function isLocal()
@@ -145,7 +145,7 @@ function isLocalUser()
         return false;
     }
 
-    if (!file_exists(getBasePath('passwords.php'))) {
+    if (!file_exists(getBasePath('ini/passwords.php'))) {
         return false;
     }
 
@@ -153,7 +153,7 @@ function isLocalUser()
         die("Bitte warten. Zu viele Fehlversuche.");
     }
 
-    require_once(getBasePath('passwords.php'));
+    require_once(getBasePath('ini/passwords.php'));
     if (in_array($_POST['pass'], $passwords)) {
         return true;
     }
@@ -209,20 +209,31 @@ function isDaysBefore($dayMonth, $days = 14)
     return ($interval->days < $days and $interval->invert == 1);
 }
 
-function handleSamlAuth()
+function handleSamlAuth($doLogout = false)
 {
     $samlfile = '/var/simplesaml/lib/_autoload.php';
+    $host = configValue("Main", "host");
+    $logoutTarget = configValue("Main", "logoutTarget");
+    $userAttr = configValue("SAML", "userAttr");
 
-    if ($_SERVER['HTTP_HOST'] == "sharepicgenerator.de" AND file_exists($samlfile)) {
+    if ($_SERVER['HTTP_HOST'] == $host and file_exists($samlfile)) {
         require_once($samlfile);
         $as = new SimpleSAML_Auth_Simple('default-sp');
         $as->requireAuth();
+
+        if ($doLogout == true) {
+            header("Location: ".$as->getLogoutURL($logoutTarget));
+        }
+
         $samlattributes = $as->getAttributes();
-        $user = $samlattributes['urn:oid:0.9.2342.19200300.100.1.1'][0];
+        $user = $samlattributes[$userAttr][0];
 
         $session = SimpleSAML_Session::getSessionFromRequest();
         $session->cleanup();
-        tenantsSwitch($as);
+
+        if (configValue("SAML", "doTenantsSwitch") == "true") {
+            tenantsSwitch($as);
+        }
     } else {
         $user = "nosamlfile";
     }
@@ -331,7 +342,7 @@ function tidyUp($filename, $format)
 
 function debug($msg)
 {
-    file_put_contents(getBasePath('log/error.log'), $msg, FILE_APPEND);
+    file_put_contents(getBasePath('log/logs/error.log'), $msg, FILE_APPEND);
 }
 
 function debugPic($filename, $format)
@@ -467,23 +478,39 @@ function tenantsSwitch($as)
     $attributes = $as->getAttributes();
     $landesverband = (int) substr($attributes['membershipOrganizationKey'][0], 1, 2);
 
-    if ($landesverband == 5 and isset($_SERVER['HTTP_REFERER'])) {
-        if ('saml.gruene.de' == parse_url($_SERVER['HTTP_REFERER'], PHP_URL_HOST)) {
-            // freshly logged in
-            header('Location: /tenants/nrw', true, 302);
-            die();
-        }
-    }
+    // if ($landesverband == 5 and isset($_SERVER['HTTP_REFERER'])) {
+    //     if ('saml.gruene.de' == parse_url($_SERVER['HTTP_REFERER'], PHP_URL_HOST)) {
+    //         // freshly logged in
+    //         header('Location: /tenants/nrw', true, 302);
+    //         die();
+    //     }
+    // }
 }
 
-function pixabayConfig()
+function readConfig()
 {
     $retval = "";
     $config_file = getBasePath('/ini/config.ini');
 
     if (file_exists($config_file)) {
-        $keys = parse_ini_file($config_file, true);
-        $retval = "config.pixabay={ 'apikey': '". $keys["Pixabay"]["apikey"] . "' };";
+        $_SESSION['config'] = parse_ini_file($config_file, true);
+    }
+}
+
+function configValue($group, $attribute)
+{
+    $value = false;
+    if (isset($_SESSION["config"][$group][$attribute])) {
+        $value = $_SESSION["config"][$group][$attribute];
+    }
+    return $value;
+}
+
+function pixabayConfig()
+{
+    $apikey = configValue("Pixabay", "apikey");
+    if ($apikey != false) {
+        $retval = "config.pixabay={ 'apikey': '". $apikey . "' };";
     }
     return $retval;
 }
@@ -496,9 +523,10 @@ function reuseSavework($saveworkFile)
     $cmd = sprintf('unzip %s -d %s 2>&1', $saveworkFile, $savedir);
     exec($cmd, $output);
 
-    $return['okay'] = true;
-    //$return['debug'] = $output;
+    $cmd = sprintf("chmod -R 777 %s", $savedir);
+    exec($cmd, $output);
 
+    $return['okay'] = true;
     $datafile = $savedir . '/data.json';
     $json = file_get_contents($datafile);
 
@@ -506,4 +534,81 @@ function reuseSavework($saveworkFile)
     $return['dir'] = '../'. $tmpdir;
 
     return json_encode($return);
+}
+
+function human_filesize($bytes, $decimals = 2)
+{
+    $factor = floor((strlen($bytes) - 1) / 3);
+    if ($factor > 0) {
+        $sz = 'KMGT';
+    }
+    return sprintf("%.{$decimals}f", $bytes / pow(1024, $factor)) . @$sz[$factor - 1] . 'B';
+}
+
+function showPictures($main_dir)
+{
+    $dirs = glob($main_dir . '/*', GLOB_ONLYDIR);
+    $formats = "*.{jpg,JPG,jpeg,JPEG,png,PNG}";
+
+    foreach ($dirs as $album) {
+        $pics = array_reverse(glob($album . '/' . $formats, GLOB_BRACE));
+        $albumname = basename($album);
+        $dirname = $album;
+        $photographer = "";
+        $tags = "";
+
+        $meta_file = $album . '/meta.ini';
+        if (file_exists($meta_file)) {
+            $meta = parse_ini_file($meta_file);
+            $photographer = "<tr><td class='pr-3'>Fotograf</td><td class='llphotographer'>". $meta['Photographer'] ."</td></tr>";
+            $tags = "<tr><td class='pr-3'>Tags</td><td class='lltags'>". $meta['Tags'] ."</td></tr>";
+        }
+
+        foreach ($pics as $pic) {
+            $file_parts = pathinfo($pic);
+            $ext = $file_parts['extension'];
+            $name = $file_parts['basename'];
+            $fsize = human_filesize(filesize($pic));
+            $useLink = "<a href='../index.php?usePicture=pictures/".$pic ."' ><i class='fas fa-upload'> Verwenden</i></a>";
+
+            $showPic = $pic;
+            if (file_exists("$dirname/thumbs/$name")) {
+                $showPic = "$dirname/thumbs/$name";
+            }
+
+            $img_data = getimagesize($pic);
+            $img_size = $img_data[0] . " x " . $img_data[1];
+
+            echo <<<EOL
+          <div class="col-6 col-md-3 col-lg-3" data-id="1">
+              <figure>
+                  <img src="$showPic" class="img-fluid" />
+                  <figcaption>
+                      <table class="small">
+                          <tr>
+                              <td class="pr-3">Name</td>
+                              <td class="llname">$name</td>
+                          </tr>
+                          $photographer
+                          <tr>
+                              <td class="pr-3">Album</td>
+                              <td class="llalbum">$albumname</td>
+                          </tr>
+                          <tr>
+                              <td class="pr-3 llsize">Dateigröße</td>
+                              <td>$fsize</td>
+                          </tr>
+                          <tr>
+                              <td class="pr-3 llformat">Format / Größe</td>
+                              <td>$ext / $img_size</td>
+                          </tr>
+                          $tags
+                          $useLink
+                      </table>
+                  </figcaption>
+              </figure>
+          </div>
+EOL;
+        }
+    }
 }

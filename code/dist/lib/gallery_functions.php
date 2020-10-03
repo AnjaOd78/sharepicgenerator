@@ -4,22 +4,16 @@ function ensureGalleryDir($tenant, $filename)
 {
     $directory = sprintf("tenants/%s/gallery/img/%s/", $tenant, $filename);
     if (!file_exists(getBasePath($directory))) {
-        mkdir(getBasePath($directory));
+        mkdir(getBasePath($directory), 0775);
+        $command = sprintf("chmod 775 %s", getBasePath($directory));
+        exec($command, $output);
     }
     return $directory;
 }
 
 function saveOrigFile()
 {
-    $saveOrig = false;
-    $config_file = getBasePath('/ini/config.ini');
-    if (file_exists($config_file)) {
-        $keys = parse_ini_file($config_file, true);
-        if ($keys["Gallery"]["saveOrigFile"] == 'true') {
-            $saveOrig = true;
-        }
-    }
-    return $saveOrig;
+    return (configValue("Gallery", "saveOrigFile") == 'true');
 }
 
 function saveInGallery($file, $format, $tenant)
@@ -37,8 +31,8 @@ function saveInGallery($file, $format, $tenant)
     exec($command);
 
     $info = array(
-      "Nutzer*in"=>sanitizeUserinput($_POST['user']),
-      'Datum' => date("Y-m-d H:i:s"),
+      "user"=>getUser(),
+      'date' => date("Y-m-d H:i:s"),
       'ID' => $filename
     );
 
@@ -53,62 +47,129 @@ function saveInGallery($file, $format, $tenant)
 function saveWorkInGallery($zipfile, $tenant, $filename)
 {
     $directory = ensureGalleryDir($tenant, $filename);
-    copy($zipfile, getBasePath($directory . "save_" . $filename . ".zip"));
+    $targetFile = getBasePath($directory . "save_" . $filename . ".zip");
+    copy($zipfile, $targetFile);
 }
 
-function showImages($dir_glob)
+function showImages($dir_glob, $whoseFiles = 'foreignFiles')
 {
-    $dirs = array_reverse(glob($dir_glob));
+    $dirs = array_reverse(glob($dir_glob, GLOB_ONLYDIR));
+    $i=0;
     foreach ($dirs as $shpic) {
-        $thumb = $shpic . '/' . basename($shpic) . '_thumb.jpg';
-        $infofile = $shpic . '/info.json';
-
-        if (file_exists($infofile)) {
-            $info = json_decode(file_get_contents($infofile), true);
+        if ($whoseFiles == 'ownFiles') {
+            if (getUser()!=getUserOfGalleryFile($shpic)) {
+                continue;
+            }
         }
-        $id = $info['ID'];
-        $user = $info['Nutzer*in'];
-        $date = $info['Datum'];
-
-        $origLink='';
-        if (isset($info['origFile'])) {
-            $origFilePath = $shpic . '/' . $info['origFile'];
-            $origLink = "<a href='". $origFilePath ."' download><i class='fas fa-image'> Sharepic</i></a>";
+        if ($whoseFiles == 'foreignFiles') {
+            if (getUser()==getUserOfGalleryFile($shpic)) {
+                continue;
+            }
         }
 
-        $saveLink='';
-        $saveFile = $shpic . '/save_' . basename($shpic) . '.zip';
-
-        if (file_exists($saveFile)) {
-            $saveLink = "<a href='". $saveFile ."' download><i class='fas fa-download'> Download Arbeitsdatei</i></a>";
-            $useLink = "<a href='../index.php?useSavework=gallery/".$saveFile ."' ><i class='fas fa-play'> Nutze Arbeitsdatei</i></a>";
-        }
-
-        $additional = "<tr><td colspan='2'>$origLink &nbsp; $saveLink &nbsp; $useLink</td></tr>";
-
-        echo <<<EOL
-        <div class="col-6 col-md-3 col-lg-3">
-            <figure>
-                <img src="$thumb" class="img-fluid" />
-                <figcaption>
-                    <table class="small">
-                        <tr>
-                            <td class="pr-3 ">Id</td>
-                            <td>$id</td>
-                        </tr>
-                        <tr>
-                            <td class="pr-3 ">Nutzer*in</td>
-                            <td>$user</td>
-                        </tr>
-                        <tr>
-                            <td class="pr-3 ">Erstellt am</td>
-                            <td>$date</td>
-                        </tr>
-                        $additional
-                    </table>
-                </figcaption>
-            </figure>
-        </div>
-EOL;
+        showImage($shpic);
+        $i++;
     }
+
+    if ($i==0) {
+        echo '<div class="col-12">Du hast noch kein eigenes Muster-Sharepic veröffentlicht.<br>
+            <a href="../"><i class="fas fa-wrench"></i> erstelle ein eigenes Sharepic</a></div>';
+    }
+}
+
+function showImage($shpic)
+{
+    $thumb = $shpic . '/' . basename($shpic) . '_thumb.jpg';
+    $infofile = $shpic . '/info.json';
+
+    if (file_exists($infofile)) {
+        $info = json_decode(file_get_contents($infofile), true);
+    }
+    $id = $info['ID'];
+    $user = $info['user'];
+    $date = $info['date'];
+
+    $origLink='';
+    if (isset($info['origFile'])) {
+        $origFilePath = $shpic . '/' . $info['origFile'];
+    }
+
+    $saveLink='';
+    $saveFile = $shpic . '/save_' . basename($shpic) . '.zip';
+
+    if (file_exists($saveFile)) {
+        $useLink = "<tr> <td class=\"pr-3\"></td><td><a href='../index.php?useSavework=gallery/"
+            .$saveFile .
+            "' ><i class='fas fa-wrench'></i> weiterarbeiten</a></td></tr>";
+    }
+
+    $deleteLink = '';
+    if ($user == $_SESSION['user']) {
+        $deleteLink = "<tr><td class=\"pr-3\"></td><td><a data-id=\""
+        .$id .
+        "\" class=\"deleteWorkfile text-danger cursor-pointer\"><i class='fas fa-trash'></i> löschen</a></td></tr>";
+    }
+
+    echo <<<EOL
+    <div class="col-6 col-md-3 col-lg-3">
+        <figure class="samplesharepic">
+            <img src="$thumb" class="img-fluid"/>
+
+            <figcaption class="d-flex justify-content-around align-items-center">
+                <table class="small m-2">
+                    <tr>
+                        <td class="pr-3 ">Id</td>
+                        <td>$id</td>
+                    </tr>
+                    <tr>
+                        <td class="pr-3 ">Nutzer*in</td>
+                        <td>$user</td>
+                    </tr>
+                    $deleteLink
+                    $useLink
+                </table>
+            </figcaption> 
+        </figure>
+    </div>
+EOL;
+}
+
+function deleteWorkfile($id)
+{
+    $galleryDir = getBasePath('tenants/' . $_SESSION['tenant'] . '/gallery/img/' . $id);
+    if (!$userOfGalleryFile = getUserOfGalleryFile($galleryDir)) {
+        returnJsonErrorAndDie("could not delete");
+    }
+
+    if (getUser() != $userOfGalleryFile) {
+        returnJsonErrorAndDie("could not delete");
+    }
+
+    exec('rm -rf ' . $galleryDir);
+    returnJsonSuccessAndDie();
+}
+
+function getUserOfGalleryFile($dir)
+{
+    
+    $dataFile = $dir . '/info.json';
+    if (!file_exists($dataFile)) {
+        return false;
+    }
+    $data = json_decode(file_get_contents($dataFile));
+
+    return $data->user;
+}
+
+function countGalleryImages($dir_glob)
+{
+    $dirs = array_reverse(glob($dir_glob, GLOB_ONLYDIR));
+    $ownFiles = 0;
+    foreach ($dirs as $shpic) {
+        if (getUser()==getUserOfGalleryFile($shpic)) {
+            $ownFiles++;
+        }
+    }
+
+    return array(count($dirs),$ownFiles);
 }

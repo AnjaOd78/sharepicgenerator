@@ -45,7 +45,6 @@ function nextActionDay()
             switch (floor((($timestamp - time()) / 3600 / 24))) {
                 case 0:
                     $remainingTimeText = "Heute ";
-                    print_r($day);
                     break;
                 case 1:
                     $remainingTimeText = "Morgen";
@@ -61,7 +60,7 @@ function nextActionDay()
         ?>
 
 
-        <div class="col-12 text-center mb-5">
+        <div class="col-12 text-center">
             <i class="far fa-hand-point-right"></i>
             Sharepic-Idee:
             <?php printf(

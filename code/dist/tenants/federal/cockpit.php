@@ -1,22 +1,45 @@
 <?php
 // phpcs:ignoreFile -- mainly html, ignore it
+
+require_once('base.php');
+require_once(getBasePath('lib/functions.php'));
+require_once(getBasePath('lib/gallery_functions.php'));
+
+useDeLocale();
+
+session_start();
+readConfig();
+
+if (!isAllowed(false)) {
+    header("Location: ". configValue("Main", "logoutTarget"));
+    die();
+}
+
 ?>
 
 <form id="pic">
     <div class="list-group">
 
-        <h3 class="" data-toggle="collapse" data-target=".picture">Bild</h3>
+        <h3 class="" data-toggle="collapse" data-target=".picture"><i class="fas fa-image"></i> Bild</h3>
         <div class="picture show list-group-item list-group-item-action flex-column align-items-start">
             <div class="d-flex justify-content-between mb-1">
                 <a href="#" class="text-primary cursor-pointer uploadfileclicker">
                     <i class="fa fa-upload"></i> Hintergrundbild/ -video hochladen
-                </a>
-
+                </a> 
                 <span class="text-primary cursor-pointer" id="pixabayopener">
                     <i class="fas fa-search"></i> suchen
                 </span>
             </div>
-            <small class="collapsed cursor-pointer text-primary preferences-pic-btn" data-toggle="collapse" data-target=".preferences-pic" aria-expanded="false" aria-controls="collapsePreferecesPic">
+            <?php if(configValue("Features","showMediaGallery")){ ?>
+                <div class="d-flex justify-content-between mb-1">
+                    <a href="pictures" title="Bild aus der internen Mediengalerie auswählen" class="">
+                        <i class="fas fa-image ml-3"></i> Mediengalerie
+                    </a>
+                </div>
+            <?php } ?>
+           
+               
+            <small class="collapsed cursor-pointer text-primary preferences-pic-btn novideo" data-toggle="collapse" data-target=".preferences-pic" aria-expanded="false" aria-controls="collapsePreferecesPic">
                Bildeinstellungen
             </small>
             <div class="mb-1 list-group-item-content collapse preferences-pic">
@@ -114,7 +137,7 @@
             </div>
          </div>
 
-        <h3 class="collapsed" data-toggle="collapse" data-target=".layout">Ausgabegröße</h3>
+        <h3 class="collapsed" data-toggle="collapse" data-target=".layout"><i class="fas fa-expand-arrows-alt"></i> Ausgabegröße</h3>
         <div class="layout collapse list-group-item list-group-item-action flex-column align-items-start novideo">
             <div class="d-flex w-100 justify-content-between align-items-center">
                 <div class="form-inline">
@@ -145,7 +168,7 @@
             </div>
         </div>
 
-        <h3 class="" data-toggle="collapse" data-target=".text">Text</h3>
+        <h3 class="" data-toggle="collapse" data-target=".text"><i class="fas fa-text-width"></i> Text</h3>
         <div class="text collapse show list-group-item list-group-item-action flex-column align-items-start">
             <div class="list-group-item-content mb-2">
 
@@ -228,7 +251,7 @@
             </div>
         </div>
 
-        <h3 class="collapsed" data-toggle="collapse" data-target=".eyecatcher">Störer</h3>
+        <h3 class="collapsed" data-toggle="collapse" data-target=".eyecatcher"><i class="far fa-eye"></i> Störer</h3>
         <div class="eyecatcher list-group-item list-group-item-action flex-column align-items-start collapse">
             <div class="mb-1 list-group-item-content">
                 <div class="d-flex align-items-lg-center">
@@ -244,7 +267,7 @@
             </div>
         </div>
 
-        <h3 class="collapsed" data-toggle="collapse" data-target=".logo">Logo</h3>
+        <h3 class="collapsed" data-toggle="collapse" data-target=".logo"><i class="fas fa-fan"></i> Logo</h3>
         <div class="logo collapse list-group-item list-group-item-action flex-column align-items-start">
             <div class="mb-1 d-flex align-items-lg-center">
                 <select class="form-control" name="logoselect" id="logoselect">
@@ -298,17 +321,7 @@
                 <small>groß</small>
             </div>
             <div class="">
-                Erstelle Dein OV-Logo mit dem <a href="/logo" target="_blank">Logogenerator</a>.
-            </div>
-        </div>
-
-        <h3 class="collapsed" data-toggle="collapse" data-target=".screen">Screen</h3>
-        <div class="screen collapse list-group-item list-group-item-action flex-column align-items-start">
-            <div class="mb-1 align-items-center">
-                <span class="mr-2">Hintergrund:</span>
-               <input id="color-scheme" type="checkbox" data-width="60" data-size="xs" data-toggle="toggle" data-on="dunkel" data-off="hell">
-                <span class="ml-5 mr-2">Hilflinien:</span>
-               <input id="gridlines" type="checkbox" data-width="40" data-size="xs" data-toggle="toggle" data-on="an" data-off="aus">
+                Erstelle Dein OV-Logo mit dem <a href="https://logo.sharepicgenerator.de" target="_blank">Logogenerator</a>.
             </div>
         </div>
 
@@ -356,15 +369,57 @@
             </div>
         </div>
 
-        <h3 class="collapsed" data-toggle="collapse" data-target=".finish">Arbeitsdatei</h3>
+        <h3 class="collapsed" data-toggle="collapse" data-target=".finish"><i class="fas fa-wrench"></i> Arbeitsdatei</h3>
         <div class="finish collapse list-group-item list-group-item-action flex-column align-items-start">
             <div>
-                <button type="button" class="btn btn-secondary btn-sm" id="savework" data-click="savework"><i class="fas fa-download"></i> Arbeitsdatei herunterladen</button>
+                <button type="button" class="btn btn-secondary btn-sm" id="savework" data-click="savework"><i class="fas fa-download"></i> herunterladen</button>
                 <button type="button" class="btn btn-secondary btn-sm uploadworkclicker" id="uploadworkclicker"><i class="fas fa-upload"></i> hochladen</button>
             </div>
         </div>
 
-        <h3 class="collapsed" data-toggle="collapse" data-target=".code">Code-API</h3>
+        <?php if(configValue("Features","showGallery")){ 
+            list($allGalleryImages, $ownGalleryImages) = countGalleryImages('gallery/img/shpic*');    
+        ?>
+            <h3 class="collapsed" data-toggle="collapse" data-target=".gallery"><i class="fas fa-store"></i> Muster-Sharepics (<span id="ownGalleryImages"><?php echo $ownGalleryImages;?></span>/<span id="allGalleryImages"><?php echo $allGalleryImages;?></span>)</h3>
+            <div class="gallery collapse list-group-item list-group-item-action flex-column align-items-start">
+                <div>
+                    <a href="gallery/" target="_blank"><i class="fas fa-store"></i> Muster-Sharepics ansehen
+                    <br>
+                    Du hast
+                    <?php
+                        switch($ownGalleryImages)
+                        {
+                            case 0:
+                                echo "noch kein eigenes";
+                            break;
+                            case 1:
+                                echo "ein eigenes";
+                            break;
+                            default:
+                                echo $ownGalleryImages . ' eigene';
+                        }
+                    ?>
+                    Muster veröffentlicht.
+                    </a>
+                </div>
+                <div id="gallery-note" class="text-danger"></div>
+                <div class="d-flex justify-content-between align-items-center">
+                    <button type="button" class="btn btn-sm btn-info saveInGallery" id='saveInGallery'><i class="fas fa-save"></i> als Muster-Sharepic veröffentlichen</button>
+                </div>
+            </div>
+        <?php } ?>
+
+        <h3 class="collapsed" data-toggle="collapse" data-target=".screen"><i class="fas fa-adjust"></i> Screen</h3>
+        <div class="screen collapse list-group-item list-group-item-action flex-column align-items-start">
+            <div class="mb-1 align-items-center">
+                <span class="mr-2">Hintergrund:</span>
+               <input id="color-scheme" type="checkbox" data-width="60" data-size="xs" data-toggle="toggle" data-on="dunkel" data-off="hell">
+                <span class="ml-5 mr-2">Hilflinien:</span>
+               <input id="gridlines" type="checkbox" data-width="40" data-size="xs" data-toggle="toggle" data-on="an" data-off="aus">
+            </div>
+        </div>
+
+        <h3 class="collapsed" data-toggle="collapse" data-target=".code"><i class="fas fa-code"></i> Code-API</h3>
         <div class="code collapse list-group-item list-group-item-action flex-column align-items-start">
             <div>
                 <textarea placeholder="JavaScript-Code" name="code" id="code" class="form-control"></textarea>
@@ -374,9 +429,9 @@
                 <a href="/documentation/code" target="_blank"><i class="fas fa-book"></i> Anleitung</i></a>
             </div>
         </div>
+
         <div class="mt-2">
             <button type="button" class="btn btn-secondary download"><i class="fas fa-download"></i> Sharepic herunterladen</button>
-            <button type="button" class="btn btn-secondary saveInGallery" id='saveInGallery'><i class="fas fa-save"></i> Gallery speichern</button>
         </div>
     </div>
     <div class="d-none">

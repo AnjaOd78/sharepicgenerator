@@ -25,17 +25,8 @@ shell:
 down:
 	docker-compose down
 
-get-config:
-	docker-compose exec webserver rsync rsync tom@sharepicgenerator.de:/var/www/html/ini/* ini/
-
-get-log:
-	docker-compose exec webserver rsync tom@sharepicgenerator.de:/var/www/html/log/log.log dist/log.log
-
-get-passwords:
-	docker-compose exec webserver rsync tom@sharepicgenerator.de:/var/www/html/passwords.php dist/passwords.php
-
 test:
-	cd tests && SELENIUM_REMOTE_URL="http://localhost:4444/wd/hub" ENV=local node test.js
+	cd tests && URL=http://webserver LOCAL=true python3 test.py
 
 doc:
 	docker-compose exec mkdocs mkdocs build
@@ -67,3 +58,8 @@ update-po:
 create-mo:
 	cd  code/dist/lang/de/LC_MESSAGES && msgfmt sharepicgenerator.po --output-file=sharepicgenerator.mo
 
+clean:
+	rm code/dist/tmp/* -rf
+
+eslint:
+	cd code && npx eslint build --ext .js,.jsx,.ts,.tsx
